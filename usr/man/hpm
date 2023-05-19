@@ -1,0 +1,115 @@
+NAME
+  hpm - the Hel Repository package manager
+
+SYNOPSIS
+  hpm COMMAND
+
+DESCRIPTION
+  Command-line package manager for OpenOS (OpenComputers). Allows to easily download and install programs from the Hel Repository and OpenPrograms repositories.
+  You can define your own way of package distribution using custom hpm modules.
+
+  Available commands:
+  install <package> [...]   Download package[s] and their dependencies from the Hel Repository, and install it to the system.
+  remove <package> [...]    Remove package[s] and their dependants from the system.
+  list                      Show list of installed packages.
+  help                      Show help message.
+
+OPTIONS
+  -q
+    Quiet mode - no console output.
+  -v
+    Verbose mode - show additional info.
+ --c, --config
+      Path to hpm config file.
+  -y
+    Don't ask to press the Enter key for confirmation.
+
+METHOD-SPECIFIC OPTIONS
+  install, oppm:install
+    -r, --reinstall
+      Reinstall the package: remove it first, and then install.
+      If you specify the version of package to install (like, `hpm install package@1.1.0`), the package can be upgraded and downgraded.
+      Be careful, though! Dependencies are not resolved. The depsolver will be added in future updated.
+
+    -l, --local
+      Install the package using the `manifest` file in the directory given instead of package name.
+
+    -s, --save
+      Place the package in a directory in PWD instead of installing it globally.
+
+MODULE-SPECIFIC METHODS
+  hel:info <package name> [<version specification>]
+    Print information about a package.
+
+  hel:upgrade
+    Try to install the latest versions of the installed packages.
+
+  hel:search [keywords...]
+    List all packages when no keywords given, or search for packages.
+
+  oppm:install <package> [...]
+    Install an OpenPrograms program.
+
+  oppm:remove <package> [...]
+    Remove an OpenPrograms program.
+
+  oppm:autoremove
+    Find packages that were installed as dependencies, and aren't needed now.
+    Be careful! Packages that got installed as dependencies of a local package will be removed.
+
+  oppm:cache update
+    Fetch the latest package manifests from OpenPrograms repositories.
+
+  oppm:cache fix
+    Find and remove redundant filesystem nodes in the cache directory.
+
+  oppm:search [keywords...]
+    List all packages when no keywords given, or search for packages.
+
+  oppm:info <package name>
+    Print information about a package.
+
+MANIFEST
+  For easier package management you can create the file called `manifest` (usually you want to create it in the root directory of project). The following is the manifest template.
+
+{name="pkg-name",
+ version="1.0.2-dev",
+ dependencies={
+  {name="dep-name", version="^1.5.2", type="required"},
+  ...
+ },
+ files={
+  {url="docs/program", dir="/usr/man", name="program"},
+  ...
+ }}
+
+  name
+    The package name.
+
+  version
+    The package version.
+
+  dependencies
+    The dependencies of package.
+    - `name` is dependency name.
+    - `version` is dependency version requirement string.
+    - `type` is currently unused but kept for future updates. Should be `required`.
+
+  files
+    The list of files of the package.
+    - `url` is the path *relative to the manifest file*.
+    - `dir` is the directory to install the file to.
+    - `name` is the filename that the file will have after installation.
+
+FILES
+  /etc/hpm/hpm.cfg     configuration file
+  /etc/hpm/modules/    directory for custom modules
+  /var/lib/hpm/dist/   manifest directory
+  /var/cache/hpm/      cache directory
+
+EXAMPLES
+  hpm install holo@0.7.0
+    This command will fetch and install the Hologram Editor tool, version 0.7.0, and all of its dependencies to the system.
+
+  hpm remove holo
+    All Hologram Editor package files, including its dependants will be removed from system.
