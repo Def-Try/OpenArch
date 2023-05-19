@@ -7,6 +7,7 @@ local event = require("event")
 local fs = require("filesystem")
 local serial = require("serialization")
 local shell = require("shell")
+local process = require("process")
 local term = require("term")
 
 local gpu = component.gpu
@@ -22,7 +23,7 @@ local repositories = {
 
 local function man_error(...)
   if not superquiet then
-    io.stderr:write("\nERROR:\n  " .. ... .. "\n")
+    io.stderr:write("ERROR:\n  " .. ... .. "\n")
   end
 end
 
@@ -49,6 +50,22 @@ local cmd_list = options["Q"] or false
 local installpath = "/usr"
 
 local print = print
+
+if #options < 0 and #args < 0 or args['h'] then
+  local seg = fs.segments(shell.resolve(process.info().path))
+  print("Usage: "..seg.."[-SRQu] <-yqvc> <packages...>"..[[
+    PacMan is a package manager that supports OPPM repositories
+    -S - inStall packages
+    -R - Remove packages
+    -Q - list packages
+    -u - Update package list
+
+    -y - auto "yes" everywhere
+    -q - Superquiet mode - do not output anyting at all
+    -v - Verbose mode - output every action
+    -c - Quiet mode - output less info
+  ]])
+end
 
 if superquiet then
   function print(...) end
@@ -214,10 +231,10 @@ local function man_updatelists()
   for n,_repo in pairs(retv_repos) do
     repo = _repo[2]
     if repo.repo then
-      io.stdout:write("\rChecking sub-repository ".._repo[1].." ("..n.."/"..#retv_repos..")" .. string.rep(" ", #retv_repos[math.min(math.max(1, n-1), #retv_repos)]+50))
+      print("Checking sub-repository ".._repo[1].." ("..n.."/"..#retv_repos..")")
       local success, pkgs = pcall(geturl,"https://raw.githubusercontent.com/"..repo.repo.."/master/programs.cfg")
       if not success then
-        man_error("Error while trying to receive package list for " .. _repo[1] .. "\n")
+        man_error("Error while trying to receive package list for " .. _repo[1])
       else
         pkgs = serial.unserialize(pkgs)
         if pkgs then
@@ -229,12 +246,12 @@ local function man_updatelists()
           end
           if verbose then print() end
         else
-          man_error("Error while trying to receive package list for " .. _repo[1] .. "\n")
+          man_error("Error while trying to receive package list for " .. _repo[1])
         end
       end
     else
-      io.stdout:write("\rChecking sub-repository ".._repo[1].." ("..n.."/"..#retv_repos..")")
-      man_error("Error while trying to receive package list for " .. _repo[1] .. "\n")
+      print("Checking sub-repository ".._repo[1].." ("..n.."/"..#retv_repos..")")
+      man_error("Error while trying to receive package list for " .. _repo[1])
     end
   end
   print()
@@ -326,11 +343,17 @@ if cmd_uninstall then
     if verbose then
       print("Unregistering package "..provider[1].."... ")
     end
-    for n,pkg in pairs(reg) do
-      if pkg == provider then
-        table.remove(reg, n)
-        break
+    local unregistering = true
+    while true do
+      unregistering = false
+      for n,pkg in pairs(reg) do
+        if pkg[1] == provider[1] then
+          table.remove(reg, n)
+          unregistering = true
+          break
+        end
       end
+      if not unregistering then break end
     end
   end
   writefile("/etc/pacman/registered.cfg", serial.serialize(reg))
@@ -378,10 +401,23 @@ if cmd_install then
       man_error("Package "..i.." not found")
       fail = true
     else
-      for _,pkg in pairs(reg) do
-        if pkg[1] == toinstall[#toinstall][1] then
-          man_error("Package "..pkg[1].." is already installed.")
-          return -1
+      for _,regpkg in pairs(reg) do
+        for j,inspkg in pairs(toinstall) do
+          if regpkg[1] == inspkg[1] then
+            print("Package "..regpkg[1].." is already installed - reinstalling.")
+            local unregistering = true
+            while true do
+              unregistering = false
+              for n,pkg in pairs(reg) do
+                if pkg[1] == i then
+                  table.remove(reg, n)
+                  unregistering = true
+                  break
+                end
+              end
+              if not unregistering then break end
+            end
+          end
         end
       end
     end
@@ -408,7 +444,7 @@ end
 if cmd_list then
   local installed = readfile("/etc/pacman/registered.cfg")
   if installed == -1 then
-    print("No pacman registration file found. Did something broke it?")
+    print("No pacman registration file found. Try installing any package.")
     return -1
   end
   installed = serial.unserialize(installed)
