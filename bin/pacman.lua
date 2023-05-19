@@ -51,9 +51,9 @@ local installpath = "/usr"
 
 local print = print
 
-if #options < 0 and #args < 0 or args['h'] then
+if (#options < 1 and #args < 1) or args['h'] then
   local seg = fs.segments(shell.resolve(process.info().path))
-  print("Usage: "..seg.."[-SRQu] <-yqvc> <packages...>"..[[
+  print("Usage: "..seg[#seg].."[-SRQu] <-yqvc> <packages...>"..[[
     PacMan is a package manager that supports OPPM repositories
     -S - inStall packages
     -R - Remove packages
@@ -65,6 +65,7 @@ if #options < 0 and #args < 0 or args['h'] then
     -v - Verbose mode - output every action
     -c - Quiet mode - output less info
   ]])
+  return 0
 end
 
 if superquiet then
